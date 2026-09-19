@@ -1,24 +1,37 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
+
+from fastapi import FastAPI
+from fastapi.responses import Response
+from pydantic import BaseModel
+
+app = FastAPI()
 
 profile = {
     "heroTitle": "关于我",
     "heroSubtitle": "项目，创意，灵感，心得，我的作品",
 }
+class AnalyzeRequest(BaseModel):
+    text: str
 
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        
-        if self.path == "/api/profile":
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            body = json.dumps(profile, ensure_ascii=False)  # ensure_ascii=False：让中文原样输出
-            self.wfile.write(body.encode("utf-8"))
-       
-        else:
-            self.send_response(404)
-            self.end_headers()
 
-print("后端已启动：http://localhost:8001/api/profile")
-HTTPServer(("", 8001), Handler).serve_forever()
+def utf8_json(data: dict) -> Response:
+    """显式声明 UTF-8，兼容 Windows PowerShell 的响应解码。"""
+    return Response(
+        content=json.dumps(data, ensure_ascii=False),
+        media_type="application/json; charset=utf-8",
+    )
+
+
+@app.get("/api/profile")
+def get_profile() -> Response:
+    return utf8_json(profile)
+
+
+@app.post("/api/analyze")
+def analyze(req: AnalyzeRequest) -> Response:
+    return utf8_json({
+        "text": req.text,
+        "score": 0.5,
+        "label": "偏平静",
+        "pinyin": "（模块 6 再说）",
+    })
