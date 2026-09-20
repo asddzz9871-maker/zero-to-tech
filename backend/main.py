@@ -1,5 +1,7 @@
 import json
 from fastapi.middleware.cors import CORSMiddleware
+from pypinyin import lazy_pinyin, Style
+from snownlp import SnowNLP
 
 from fastapi import FastAPI
 from fastapi.responses import Response
@@ -44,12 +46,22 @@ def utf8_json(data: dict) -> Response:
 def get_profile() -> Response:
     return utf8_json(profile)
 
+def score_label(score):
+    if score >= 0.6:
+        return "偏积极"
+    elif score <= 0.4:
+        return "偏消极"
+    else:
+        return "中性"
+
 
 @app.post("/api/analyze")
 def analyze(req: AnalyzeRequest) -> Response:
+    text = req.text
+    score = round(SnowNLP(text).sentiments, 2)
     return utf8_json({
         "text": req.text,
-        "score": 0.5,
-        "label": "偏平静",
-        "pinyin": "（模块 6 再说）",
+        "score": score,
+        "label": score_label(score),
+        "pinyin":  " ".join(lazy_pinyin(text, style=Style.TONE)),
     })
