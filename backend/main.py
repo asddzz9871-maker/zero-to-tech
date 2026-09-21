@@ -1,11 +1,14 @@
-import json
+
 from fastapi.middleware.cors import CORSMiddleware
 from pypinyin import lazy_pinyin, Style
 from snownlp import SnowNLP
-
+from datetime import datetime, timezone
+from storage import init_db, save_record, get_history
 from fastapi import FastAPI
 from fastapi.responses import Response
 from pydantic import BaseModel
+
+init_db()
 
 app = FastAPI()
 app.add_middleware(
@@ -56,12 +59,20 @@ def score_label(score):
 
 
 @app.post("/api/analyze")
-def analyze(req: AnalyzeRequest) -> Response:
+def analyze(req: AnalyzeRequest):
     text = req.text
     score = round(SnowNLP(text).sentiments, 2)
-    return utf8_json({
-        "text": req.text,
+    result = {
+        "text": text,
         "score": score,
         "label": score_label(score),
-        "pinyin":  " ".join(lazy_pinyin(text, style=Style.TONE)),
-    })
+        "pinyin": " ".join(lazy_pinyin(text, style=Style.TONE)),
+        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),  # ← 新增
+    }
+    save_record(result)                                                          # ← 存档到文件
+    return result
+
+@app.get("/api/history")
+def history():
+    # 读出文件里的最近记录
+    return get_history(10)
